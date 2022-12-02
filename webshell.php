@@ -127,6 +127,15 @@ function deleteFolder($dirnya) {
     return rmdir($dirnya);
 }
 
+function uploadFile($fileSementara, $fileUpload) {
+	$terupload = move_uploaded_file($fileSementara, $fileUpload);
+	if($terupload) {
+		return true;
+	}else {
+		return false;
+	}
+}
+
 
 $pecahLagi = setPath($pecah);
 
@@ -167,8 +176,9 @@ if(isset($_POST['pilihan'])) {
 			$filename = $_POST['namaFile'];
 			$namaBaru = $_POST['namaBaru'];
 			if(!empty($namaBaru)){
-				if(rename($dirFile, $namaBaru)) {
+				if(rename($dirFile, $_GET['path'] . '/' . $namaBaru)) {
 					$filename = $namaBaru;
+					$dirFile = $_GET['path'] . '/' . $namaBaru;
 					$successRename = 'Berhasil rename';
 				}else {
 					$successRename = 'Gagal rename';
@@ -193,7 +203,7 @@ if(isset($_POST['pilihan'])) {
 			}else if(isset($dirFile) && is_dir($dirFile)) {
 				//$dirFile = $dirFile . '/';
 				if(deleteFolder($dirFile)) {
-									$pesanHapus =  "<script>
+				    $pesanHapus =  "<script>
 									alert('Folder berhasil dihapus!!');
 									window.location.href = window.location.href;
 								    </script>";
@@ -211,13 +221,51 @@ if(isset($_POST['pilihan'])) {
 			$permission = substr(sprintf('%o', $file), -4);
 			$dirFile = $_POST['dir'];
 			$perms = $_POST['perms'];
-
 			if(isset($perms)) {
 				if(chmod($dirFile, $perms)) {
 					$permission = $perms;
 					$successChmod ='Berhasil chmod!';
 				}else {
 				    $successChmod = 'Gagal chmod!';
+				}
+			}
+			break;
+		case $_POST['pilihan'] == 'create':
+			$namaFile = "";
+			$isiFile = "";
+
+			$dirPath = $_GET['path'] . '/';
+			if(isset($_POST['createAction'])) {
+				$namaFile = $_POST['createName'];
+				$isiFile = $_POST['createIsi'];
+				if(!file_exists($dirPath . $namaFile)) {
+					if(file_put_contents($dirPath . $namaFile, $isiFile)) {
+						$pesanCreate = 'File berhasil dibuat';
+					}else {
+						$pesanCreate = 'Directory not Writable';
+					}
+				}else {
+					$pesanCreate = 'Nama file sudah ada';
+				}
+			}
+			break;
+		case $_POST['pilihan'] == 'upload':
+			$path = $replace;
+			if(isset($_GET['path'])) {
+				$path = $_GET['path'];
+			}
+
+			if(!empty($_FILES)) {
+				if(uploadFile($_FILES['uploadFile']['tmp_name'], $path . '/' . $_FILES['uploadFile']['name'])) {
+					echo "<script>
+						  alert('File berhasil diupload!!');
+						  window.location.href = window.location.href;
+						  </script>";
+				}else {
+					echo "<script>
+						  alert('File gagal diupload!!');
+						  window.location.href = window.location.href;
+						  </script>";
 				}
 			}
 			break;
@@ -253,6 +301,12 @@ nav {
     width: 100px;
     display: inline-block;
 }
+
+.file-field .btn, .file-field .btn-large, .file-field .btn-small {
+    float: inherit;
+    height: 3rem;
+    line-height: 3rem;
+}
 </style>
 <body>
 	<nav>
@@ -276,40 +330,109 @@ nav {
 		<a href="?path=<?= $gets; ?>"><?= @$pec[$i++]; ?></a>/
 	<?php endforeach; endif; ?>
 	</div>
-
+	<br>	
 	<?php if($cek){ ?>
 
-<textarea cols="80" rows="20" disabled="">
-<?= $konten; ?>
-</textarea>
+<div class="container">
+<div class="row">
+    <form class="col s12">
+      <div class="row">
+        <div class="input-field col s12">
+          <textarea id="textarea" class="materialize-textarea" disabled><?= $konten; ?></textarea>
+          <label for="textarea" class='active'><?= $_GET['path']; ?></label>
+        </div>
+      </div>
+    </form>
+  </div>
+ </div>
 	<?php }else if($edit){ ?>
-<?= !empty($successEdit) ? $successEdit : ""; ?>
+<div class="container">
+<?= !empty($successEdit) ? "<p class='blue-text text-darken-2'>" . $successEdit . "</p>" : ""; ?>
 <form method="POST">
 <input type="hidden" name="dir" value="<?= $dirFile; ?>">
 <input type="hidden" name="pilihan" value="edit">
-<textarea cols="80" rows="20" name="sourceFile">
-<?= bungkus($dirFile); ?>
-</textarea>
-<br>
-<button type="submit">Update!!</button>
+<div class="row">
+    <form class="col s12">
+      <div class="row">
+        <div class="input-field col s12">
+          <textarea name="sourceFile" id="textarea" class="materialize-textarea"><?= bungkus($dirFile); ?></textarea>
+          <label for="textarea" class='active'>Edit File</label>
+          <button class="btn waves-effect waves-light" type="submit" name="action">Edit</button>
+        </div>
+      </div>
+    </form>
+  </div>
 </form>
+</div>
 	<?php }else if($rename){ ?>
-		<?= !empty($successRename) ? $successRename : ""; ?>
+		<div class="container">
+		<?= !empty($successRename) ? "<p class='blue-text text-darken-2'>" . $successRename . "</p>" : ""; ?>
 		<form method="POST">
 			<input type="hidden" name="dir" value="<?= $dirFile; ?>">
 			<input type="hidden" name="pilihan" value="rename">
-			<input type="text" name="namaBaru" value="<?= $filename; ?>">
-			<button type="submit">Rename</button>
+			  <div class="row center-align">
+			    <div class="input-field col s6">
+			      <input value="<?= $filename; ?>" name="namaBaru" id="rename" type="text" class="validate">
+			      <label class="active" for="rename">Input disini:</label>
+			      <button class="btn waves-effect waves-light" type="submit" name="action">Rename</button>
+			    </div>
+			  </div>			  
 		</form>
+		</div>
 	<?php }else if($chmod) { ?>
-		<?= !empty($successChmod) ? $successChmod : ''; ?>
+		<div class="container">
+		<?= !empty($successChmod) ? "<p class='blue-text text-darken-2'>" . $successChmod . "</p>" : ''; ?>
 		<form method="POST">
 			<input type="hidden" name="dir" value="<?= $dirFile; ?>">
 			<input type="hidden" name="pilihan" value="chmod">
-			<input type="text" name="perms" value="<?= $permission; ?>">
-			<button type="submit">Chmod</button>
+			  <div class="row center-align">
+			    <div class="input-field col s6">
+			      <input value="<?= $permission; ?>" name="perms" id="chmod" type="text" class="validate">
+			      <label class="active" for="chmod">Input disini:</label>
+			      <button class="btn waves-effect waves-light" type="submit" name="action">Chmod</button>
+			    </div>
+			  </div>
 		</form>
+		</div>
+	<?php }else if(isset($_GET['create'])){ ?>
+		<br>
+		<div class="container">
+		<?= !empty($pesanCreate) ? "<p class='blue-text text-darken-2'>" . $pesanCreate . "</p>" : ""; ?>
+		<form method="POST">
+			<input type="hidden" name="pilihan" value="create">
+			  <div class="row center-align">
+			    <div class="input-field col s6">
+			      <input name="createName" id="createFile" type="text" class="validate" value="<?= $namaFile; ?>">
+			      <label class="active" for="createFile">Nama File</label>
+			      <textarea name="createIsi" class="materialize-textarea" style="height: 400px; background-color: ghostwhite; overflow-y: scroll;"><?= $isiFile; ?></textarea>
+			      <button class="btn waves-effect waves-light" type="submit" name="createAction">Create</button>
+			    </div>
+			  </div>
+		</form>
+		</div>
 	<?php }else{ ?>
+	<div class="container">	
+   <b class="info">
+	 <a href="?create&path=<?= isset($_GET['path']) ? $_GET['path'] : $replace; ?>" class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> Add File
+	<br>
+	<b class="info">
+		 <form method="POST" enctype="multipart/form-data">
+		    <div class="file-field input-field">
+		      <div class="btn">
+		        <span>File</span>
+		        <input type="hidden" name="pilihan" value="upload">
+		        <input type="hidden" name="dir" value="<?= $_GET['path'] ?>">
+		        <input type="file" name="uploadFile">
+		      </div>
+		      <div class="file-path-wrapper">
+		        <input class="file-path validate" type="text" style="width: 300px">
+		        <button class="btn waves-effect waves-light" type="submit" name="actionUpload">Upload!
+				</button>
+		      </div>
+		    </div>
+  		</form>
+	</b>
+</div>
    <div class="container">	
 	<table class="striped centered bordered">
 		<?= !empty($pesanHapus) ? $pesanHapus : ''; ?>
