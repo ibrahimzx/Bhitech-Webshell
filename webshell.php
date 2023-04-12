@@ -5,7 +5,7 @@ error_reporting(0);
 
 function info() {
   $arr = [
-    'ip' => $_SERVER['REMOTE_ADDR'],
+    'ip' => $_SERVER['SERVER_ADDR'],
     'host' => gethostname(),
     'kernel' => php_uname(),
     'disablefunc' => ini_get('disable_functions'),
