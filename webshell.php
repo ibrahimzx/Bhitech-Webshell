@@ -48,7 +48,7 @@ if(isset($_GET['path'])) {
 
 function loginShell() {
 		if(!isset($_SESSION['isLogin'])) {
-			echo "<form method='POST'><input type='text' name='password' type='password'><button type='submit'>Submit</button></form>";
+			echo "<form method='POST'><input type='password' name='password'><button type='submit'>Submit</button></form>";
 			die();
 		}
 }
